@@ -1,0 +1,636 @@
+
+  :root{
+    --bg:#2f53a5; --panel:#253e72; --muted:#94a3b8; --text:#e5e7eb; --acc:#22c55e; --acc2:#38bdf8; --danger:#ef4444; --warn:#f59e0b;
+    --card:#1d3970; --border:#203e68;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{position:sticky;top:0;background:linear-gradient(180deg,#0b1220,transparent);backdrop-filter: blur(6px);z-index:5}
+  .container{max-width:auto;margin:0 auto;padding:16px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:1px solid var(--border);background:linear-gradient(180deg,#111827,#0b1220);color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer}
+  .btn:hover{border-color:#334155}
+  .btn.acc{border-color:#14532d;background:linear-gradient(180deg,#14532d,#0b3b1f)}
+  .btn.warn{border-color:#bc4a24;background:linear-gradient(180deg,#9d4122,#c63636)}
+  .btn.ghost{background:transparent}
+  .grid{display:grid;gap:12px}
+  .cards{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .kpi{font-size:28px;font-weight:700}
+  .muted{color:var(--muted);font-size:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .sp{display:flex;justify-content:space-between;align-items:center}
+  .hidden{display:none}
+  .table{width:100%;border-collapse:collapse}
+.table th, .table td {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+  input,select,textarea{background:#0b1220;border:1px solid var(--border);color:var(--text);padding:9px;border-radius:10px;width:100%}
+  label{font-size:12px;color:var(--muted)}
+  .two{grid-template-columns:repeat(2, minmax(0, 1fr))}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .right{margin-left:auto}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .modal .box{max-width:800px;width:100%;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+  .print-area{background:white;color:black;padding:20px;border-radius:8px; max-height: 70vh;overflow-y: auto}
+  .tag{border:1px dashed #334155;border-radius:8px;padding:4px 8px;font-size:12px;color:#cbd5e1}
+  .danger-btn{background:#7f1d1d;border-color:#7f1d1d}
+  .success{color:#86efac}
+  .suggest-wrap{ position:relative; }
+  .suggestions{
+    position:absolute; left:0; right:0; top:calc(100% + 4px);
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    max-height:240px; overflow:auto; z-index:20; padding:4px;
+    box-shadow:0 10px 22px rgba(0,0,0,.35);
+  }
+  .suggest-item{ padding:8px 10px; border-radius:8px; cursor:pointer; }
+  .suggest-item:hover{ background:#0f172a; border:1px solid #334155; }
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.table-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fixed-header {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 10;
+}
+  .actions{
+    display:flex; justify-content:flex-end; gap:8px; flex-wrap:nowrap;
+  }
+  .actions .btn{ white-space:nowrap; }
+  .dropdown{ position:relative; }
+  .dropdown .menu{
+    position:absolute; right:0; top:calc(100% + 6px);
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    min-width:220px; padding:6px; z-index:30;
+    box-shadow:0 10px 22px rgba(0,0,0,.35);
+  }
+  .dropdown .menu .act-item{
+    width:100%; text-align:left; border:none; background:transparent;
+    padding:8px 10px; border-radius:8px; cursor:pointer; color:var(--text);
+  }
+  .dropdown .menu .act-item:hover{ background:#0f172a; border:1px solid #334155; }
+  .dropdown .menu .act-item.danger{ color:#fecaca; }
+  .dropdown .menu .act-item.warn{ color:#fde68a; }
+
+  .invoice-details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+  .invoice-items {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+  }
+  .invoice-items th,
+  .invoice-items td {
+    border: 1px solid var(--border);
+    padding: 10px;
+    text-align: left;
+  }
+  .invoice-items th {
+    background: var(--panel);
+  }
+  .invoice-totals {
+    margin-left: auto;
+    width: 300px;
+  }
+  .invoice-totals table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .invoice-totals td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .invoice-totals tr:last-child td {
+    font-weight: bold;
+    border-top: 2px solid var(--border);
+  }
+  .status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-paid { background: #14532d; color: #86efac; }
+  .status-unpaid { background: #7f1d1d; color: #fecaca; }
+  .status-partial { background: #7c2d12; color: #fde68a; }
+
+.payment-input {
+  background: #0b1220;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px;
+  border-radius: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* =========================================================
+   THEME V2 CLAIR (OVERRIDE) — à coller TOUT EN BAS
+   Palette: Turquoise + Gris clair (pro et agréable)
+========================================================= */
+
+/* 1) Variables globales : on override ton thème sombre */
+:root{
+  --bg:#f6f8fb;
+  --panel:#ffffff;
+  --muted:#64748b;
+  --text:#0f172a;
+
+  --acc:#14b8a6;   /* turquoise */
+  --acc2:#38bdf8;  /* cyan doux */
+  --danger:#ef4444;
+  --warn:#f59e0b;
+
+  --card:#ffffff;
+  --border:#dbe5f0;
+}
+
+/* 2) Base */
+body{
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* Ton ancien header n’est plus utilisé comme avant,
+   mais au cas où il reste quelque part */
+header{
+  background:transparent;
+  backdrop-filter:none;
+}
+
+/* 3) Layout app-shell (sidebar + body) */
+.app-shell{
+  display:grid;
+  grid-template-columns: 280px 1fr;
+  min-height:100vh;
+}
+.app-body{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+
+/* 4) Topbar */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  height:60px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 16px;
+  background:rgba(255,255,255,.86);
+  backdrop-filter: blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.topbar-title{
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.icon-btn{
+  width:40px;height:40px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--text);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 2px 10px rgba(15,23,42,.06);
+}
+.icon-btn:hover{ border-color:#bcd0e6; }
+
+/* 5) Sidebar */
+.sidebar{
+  position:sticky;
+  top:0;
+  height:100vh;
+  background:#f2f7ff;
+  border-right:1px solid #d7e3f1;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.sidebar-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px;
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 10px 26px rgba(15,23,42,.08);
+}
+.brand-logo{
+  width:44px;height:44px;
+  border-radius:14px;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));
+  color:#fff;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.brand-name{ font-weight:900; }
+.brand-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+.sidebar-user{
+  padding:12px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+}
+.user-title{ font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:800; }
+.user-row{ display:flex; gap:10px; align-items:center; }
+.user-avatar{
+  width:38px;height:38px;
+  border-radius:14px;
+  background:#e9f7f5;
+  border:1px solid #c8efe9;
+  color:#0f766e;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.user-name{ font-weight:900; }
+.user-role{ font-size:12px; color:var(--muted); }
+
+.sidebar-foot{
+  margin-top:auto;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+/* Sidebar: header + user + footer fixes, scroll uniquement sur le menu */
+.sidebar{
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;           /* IMPORTANT: pas de scroll sur toute la sidebar */
+}
+
+/* La zone rouge (menu) devient la seule zone scrollable */
+.sidebar .side-nav{
+  flex: 1;
+  overflow-y: scroll;         /* scrollbar visible ici */
+  overflow-x: hidden;
+  padding-right: 6px;         /* petit espace pour la scrollbar */
+}
+
+/* Footer reste en bas (si tu as déjà margin-top:auto c’est OK) */
+.sidebar-foot{
+  margin-top: auto;
+}
+/* Firefox */
+.sidebar .side-nav{
+  scrollbar-width: auto;
+  scrollbar-color: rgba(20,184,166,.8) rgba(0,0,0,.08);
+}
+
+/* Chrome / Edge */
+.sidebar .side-nav::-webkit-scrollbar{ width: 12px; }
+.sidebar .side-nav::-webkit-scrollbar-track{
+  background: rgba(0,0,0,0.06);
+  border-radius: 999px;
+}
+.sidebar .side-nav::-webkit-scrollbar-thumb{
+  background: rgba(20,184,166,.75);
+  border-radius: 999px;
+  border: 3px solid rgba(0,0,0,0.06);
+}
+.sidebar .side-nav::-webkit-scrollbar-thumb:hover{
+  background: rgba(20,184,166,.95);
+}
+
+/* 6) Nav accordéon */
+.side-nav{ display:flex; flex-direction:column; gap:8px; }
+.nav-acc{ position:absolute; opacity:0; pointer-events:none; }
+
+.nav-group{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#fff;
+  cursor:pointer;
+  user-select:none;
+  font-weight:900;
+}
+.nav-group:hover{ border-color:#bcd0e6; }
+
+.chev{ color:var(--muted); font-weight:900; transition:.2s ease; }
+
+.nav-panel{
+  display:none;
+  padding:8px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.92);
+}
+
+#navg_dash:checked ~ label[for="navg_dash"] + .nav-panel,
+#navg_gestion:checked ~ label[for="navg_gestion"] + .nav-panel,
+#navg_finance:checked ~ label[for="navg_finance"] + .nav-panel,
+#navg_docs:checked ~ label[for="navg_docs"] + .nav-panel,
+#navg_settings:checked ~ label[for="navg_settings"] + .nav-panel{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+#navg_dash:checked ~ label[for="navg_dash"] .chev,
+#navg_gestion:checked ~ label[for="navg_gestion"] .chev,
+#navg_finance:checked ~ label[for="navg_finance"] .chev,
+#navg_docs:checked ~ label[for="navg_docs"] .chev,
+#navg_settings:checked ~ label[for="navg_settings"] .chev{
+  transform: rotate(180deg);
+}
+
+/* 7) Contenu / cartes / grille */
+.container{ padding:16px; }
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 10px 26px rgba(15,23,42,.06);
+}
+.kpi{ color:var(--text); }
+.muted{ color:var(--muted); }
+
+/* 8) Boutons */
+.btn{
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  box-shadow:0 2px 10px rgba(15,23,42,.05);
+}
+.btn:hover{ border-color:#bcd0e6; }
+
+.btn.acc{
+  border-color: rgba(20,184,166,.45);
+  background: linear-gradient(135deg, rgba(20,184,166,.14), rgba(56,189,248,.10));
+}
+.btn.warn{
+  border-color: rgba(245,158,11,.45);
+  background: rgba(245,158,11,.10);
+}
+.btn.ghost{
+  background:transparent;
+  box-shadow:none;
+}
+.danger-btn{
+  border-color: rgba(239,68,68,.45);
+  background: rgba(239,68,68,.10);
+}
+
+/* 9) Inputs : sinon sur thème clair ils restent noirs */
+input, select, textarea{
+  background:#fff;
+  border:1px solid var(--border);
+  color:var(--text);
+}
+input:focus, select:focus, textarea:focus{
+  outline:none;
+  border-color: rgba(20,184,166,.55);
+  box-shadow: 0 0 0 3px rgba(20,184,166,.12);
+}
+.payment-input{
+  background:#fff;
+  border:1px solid var(--border);
+  color:var(--text);
+}
+
+/* 10) Table */
+.table th, .table td{
+  border-bottom:1px solid var(--border);
+}
+.table thead th{
+  color:var(--muted);
+  font-size:12px;
+  text-transform: none;
+}
+
+/* 11) Tags / pills */
+.tag{
+  border:1px dashed #bcd0e6;
+  color:#475569;
+  background:rgba(255,255,255,.6);
+}
+.pill{
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--muted);
+}
+
+/* 12) Modals */
+.modal{
+  background: rgba(15,23,42,.45);
+}
+.modal .box{
+  background: var(--panel);
+  border:1px solid var(--border);
+  box-shadow:0 16px 48px rgba(15,23,42,.18);
+}
+
+/* 13) Dropdown menus */
+.dropdown .menu{
+  background: #fff;
+  border:1px solid var(--border);
+  box-shadow:0 16px 46px rgba(15,23,42,.14);
+}
+.dropdown .menu .act-item{
+  color: var(--text);
+}
+.dropdown .menu .act-item:hover{
+  background: rgba(20,184,166,.10);
+  border:1px solid rgba(20,184,166,.25);
+}
+.dropdown .menu .act-item.danger{ color:#b91c1c; }
+.dropdown .menu .act-item.warn{ color:#b45309; }
+
+/* 14) Suggestions (autocomplete) */
+.suggestions{
+  background:#fff;
+  border:1px solid var(--border);
+  box-shadow:0 16px 46px rgba(15,23,42,.12);
+}
+.suggest-item:hover{
+  background: rgba(20,184,166,.10);
+  border:1px solid rgba(20,184,166,.25);
+}
+
+/* 15) Status badges adaptés au thème clair */
+.status-badge{ border:1px solid rgba(0,0,0,.06); }
+.status-paid{ background: rgba(22,101,52,.10); color:#166534; }
+.status-unpaid{ background: rgba(185,28,28,.10); color:#b91c1c; }
+.status-partial{ background: rgba(180,83,9,.10); color:#b45309; }
+
+/* 16) Drawer overlay */
+.drawer-overlay{
+  position:fixed;
+  inset:0;
+  background: rgba(15,23,42,.35);
+  opacity:0;
+  pointer-events:none;
+  transition:.2s ease;
+  z-index:40;
+}
+
+/* 17) Responsive <=1024 : sidebar en drawer 80% */
+@media (max-width: 1024px){
+  .app-shell{ grid-template-columns: 1fr; }
+
+  .sidebar{
+    position:fixed;
+    left:0; top:0;
+    width:80vw;
+    max-width:360px;
+    transform: translateX(-110%);
+    transition:.22s ease;
+    z-index:50;
+  }
+
+  body.drawer-open .sidebar{ transform: translateX(0); }
+  body.drawer-open .drawer-overlay{ opacity:1; pointer-events:auto; }
+}
+
+/* Desktop : cacher bouton menu */
+@media (min-width: 1025px){
+  #btnMenu{ display:none; }
+}
+
+/* Sidebar accordéon (details/summary) */
+.nav-top{
+  font-weight: 900;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.nav-section{
+  border: 0;
+  margin: 0;
+}
+
+.nav-group{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#fff;
+  cursor:pointer;
+  user-select:none;
+  font-weight:900;
+  list-style:none;
+}
+
+.nav-group::-webkit-details-marker{ display:none; }
+
+.nav-panel{
+  margin-top:8px;
+  padding:8px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.92);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.nav-item{
+  width:100%;
+  text-align:left;
+  justify-content:flex-start;
+}
+
+details[open] > .nav-group .chev{
+  transform: rotate(180deg);
+}
+
+/* Disabled entries */
+.nav-item.disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+/* Colonne actions clients */
+.actions-cell{
+  display:flex;
+  justify-content:flex-end;
+}
+
+/* Topbar: pousser le titre au centre et l’icône "Mon Compte" à droite */
+.topbar-title{
+  flex: 1;              /* prend l’espace et pousse le bouton à droite */
+}
+
+#btnMyAccount{
+  margin-left: auto;    /* garantit qu’il reste collé à droite */
+}
+
+/* MAIN : occupe toute la largeur disponible */
+main.container{
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* Clients : la card prend toute la largeur du main */
+#view-clients{
+  width: 100% !important;
+}
+
+.actions-cell{
+  display:flex;
+  justify-content:flex-end;
+}
+
+
+
+
+
+

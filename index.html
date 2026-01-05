@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DOMAPP — Centre de domiciliation</title>
+
+  <!-- (Optionnel mais utile si tu as encore des icônes font-awesome) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- Ton CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- APP SHELL -->
+  <div class="app-shell">
+
+    <!-- SIDEBAR (desktop fixe / mobile drawer) -->
+    <aside class="sidebar" id="sidebar">
+
+      <div class="sidebar-brand">
+        <div class="brand-logo">GS</div>
+        <div class="brand-text">
+          <div class="brand-name">GOLDEN SEAT</div>
+          <div class="brand-sub">Centre de domiciliation</div>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-title">User</div>
+        <div class="user-row">
+          <div class="user-avatar">U</div>
+          <div class="user-meta">
+            <div class="user-name" id="currentUserName">—</div>
+            <div class="user-role" id="currentUserRole">Invité</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NAV ACCORDÉON (1 ouvert à la fois, sans JS) -->
+      <nav class="side-nav" id="nav">
+
+  <!-- DASHBOARD (pas d'accordéon, toujours "Vue d'ensemble") -->
+  <button class="btn nav-item nav-top" data-view="dashboard">
+    📊 Tableau de bord
+  </button>
+
+  <!-- CLIENTS -->
+  <details class="nav-section" id="accClients">
+    <summary class="nav-group">
+      <span>👥 Clients</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="nav-panel">
+      <button class="btn nav-item" data-view="clients" data-action="clientsActive"> Liste clients</button>
+      <button class="btn nav-item" data-view="clients" data-action="newClient">Nouveau client</button>
+      <button class="btn nav-item" data-view="clients" data-action="openIntermediaryModal">Intermédiaires</button>
+      <button class="btn nav-item" data-view="clients" data-action="clientsArchived">Clients archivés</button>
+    </div>
+  </details>
+
+  <!-- CONTRATS -->
+  <details class="nav-section" id="accContracts">
+    <summary class="nav-group">
+      <span>🧾 Contrats</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="nav-panel">
+      <button class="btn nav-item" data-view="contracts" data-action="contractsAll">Tous les contrats</button>
+      <button class="btn nav-item" data-view="contracts" data-action="newContract">Nouveau contrat</button>
+      <button class="btn nav-item" data-view="contracts" data-action="contractsLess30">À renouveler (&lt;30j)</button>
+      <button class="btn nav-item" data-view="contracts" data-action="contractsExpired">Expirés</button>
+      <button class="btn nav-item" data-view="contracts" data-action="contractsResiliated">Résiliés</button>
+    </div>
+  </details>
+
+  <!-- FACTURATION -->
+  <details class="nav-section" id="accBilling">
+    <summary class="nav-group">
+      <span>💳 Facturation</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="nav-panel">
+      <button class="btn nav-item" data-view="invoices">Factures</button>
+      <button class="btn nav-item" data-view="payments">Paiements</button>
+      <button class="btn nav-item" data-view="invoices" data-action="journalAll">Journal des ventes</button>
+      <button class="btn nav-item" data-view="payments" data-action="journalUnpaid">État des impayés</button>
+      <button class="btn nav-item" data-view="payments" data-action="journalPaid">Relevé des payées</button>
+    </div>
+  </details>
+
+  <!-- DOCUMENTS -->
+  <details class="nav-section" id="accDocs">
+    <summary class="nav-group">
+      <span>📁 Documents</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="nav-panel">
+      <button class="btn nav-item" data-view="documents">Documents clients (PDF)</button>
+      <button class="btn nav-item" data-view="documents" data-action="docsUpload">Upload</button>
+      <button class="btn nav-item" data-view="documents" data-action="docsZip">Téléchargement ZIP</button>
+    </div>
+  </details>
+
+  <!-- PARAMÈTRES -->
+  <details class="nav-section" id="accSettings">
+    <summary class="nav-group">
+      <span>⚙️ Paramètres</span>
+      <span class="chev">▾</span>
+    </summary>
+    <div class="nav-panel">
+      <button class="btn nav-item" data-view="settings">Mes infos</button>
+
+      <!-- Plus tard -->
+      <button class="btn nav-item disabled" type="button" disabled title="Bientôt disponible">
+        Modèles & mentions
+      </button>
+      <button class="btn nav-item disabled" type="button" disabled title="Bientôt disponible">
+        Sauvegarde / Export
+      </button>
+    </div>
+  </details>
+
+</nav>
+
+
+      <div class="sidebar-foot">
+        <span class="pill soft">UI v2</span>
+        <span class="pill soft" id="appModeBadge">Sans authentification</span>
+      </div>
+    </aside>
+
+    <!-- BODY -->
+    <div class="app-body">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <button class="icon-btn" id="btnMenu" aria-label="Ouvrir le menu">☰</button>
+        <div class="topbar-title">
+          <div id="pageTitle">Tableau de bord</div>
+        </div>
+        <button class="icon-btn" id="btnMyAccount" aria-label="Mon Compte" title="Mon Compte">👤</button>
+      </header>
+
+      <!-- MAIN -->
+      <main class="container">
+
+        <!-- DASHBOARD -->
+        <section id="view-dashboard" class="grid">
+          <div class="toolbar">
+            <button class="btn acc" id="btnNewClient">➕ Nouveau client</button>
+            <button class="btn" id="btnNewContract">🧾 Nouveau contrat</button>
+            <span class="right tag">Sans authentification</span>
+          </div>
+
+          <div class="grid cards">
+            <div class="card">
+              <div class="muted">Clients actifs</div>
+              <div class="kpi" id="kpiClients">—</div>
+              <div><button class="btn ghost" onclick="goClients()">Voir la liste</button></div>
+            </div>
+
+            <div class="card">
+              <div class="muted">Contrats &lt; 30 jours</div>
+              <div class="kpi" id="kpiContractsSoon">—</div>
+              <div><button class="btn ghost" onclick="openContractsSoon()">Ouvrir la page</button></div>
+            </div>
+
+            <div class="card">
+              <div class="muted">Factures impayées</div>
+              <div class="kpi" id="kpiUnpaid">—</div>
+              <div><button class="btn ghost" onclick="openUnpaid()">Voir impayés</button></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="view-settings" class="hidden">
+          <h3>Mes infos (cabinet & gérant)</h3>
+          <div class="grid two">
+            <div class="card">
+              <div class="grid" style="gap:6px">
+                <label>Raison sociale<input id="s_company_name"></label>
+                <div class="row">
+                  <label style="flex:1">ICE<input id="s_ice"></label>
+                  <label style="flex:1">IF<input id="s_if"></label>
+                </div>
+                <div class="row">
+                  <label style="flex:1">RC<input id="s_rc"></label>
+                  <label style="flex:1">TP<input id="s_tp"></label>
+                </div>
+                <label>Adresse<input id="s_address"></label>
+                <div class="row">
+                  <label style="flex:1">Ville<input id="s_city"></label>
+                  <label style="flex:1">Email<input id="s_email"></label>
+                </div>
+                <div class="row">
+                  <label style="flex:1">Téléphone<input id="s_phone"></label>
+                  <label style="flex:1">RIB<input id="s_rib"></label>
+                </div>
+                <label>Banque<input id="s_bank"></label>
+                <label>Logo (URL)<input id="s_logo_url" placeholder="(optionnel)"></label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="grid" style="gap:6px">
+                <div class="muted">Gérant (un seul)</div>
+                <label>Nom complet<input id="s_manager_name"></label>
+                <div class="row">
+                  <label style="flex:1">CIN<input id="s_manager_cin"></label>
+                  <label style="flex:1">Nationalité<input id="s_manager_nat"></label>
+                </div>
+                <label>Date de nomination<input id="s_manager_since" type="date"></label>
+                <label>Adresse personnelle<input id="s_manager_addr"></label>
+                <div class="row">
+                  <label style="flex:1">Téléphone<input id="s_manager_phone"></label>
+                  <label style="flex:1">Email<input id="s_manager_email"></label>
+                </div>
+                <div class="toolbar">
+                  <button class="btn" id="btnEditSettings" onclick="toggleEditSettings()">✏️ Modifier</button>
+                  <button class="btn acc" id="btnSaveSettings" onclick="saveSettings()" disabled>💾 Enregistrer</button>
+                  <span class="muted" id="settingsMsg"></span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- CLIENTS -->
+        <section id="view-clients" class="hidden">
+  <div id="clientListScreen" class="card">
+    <div class="sp" style="gap:10px; flex-wrap:wrap;">
+      <h3 style="margin:0;">Clients</h3>
+      <div class="toolbar" style="margin:0;">
+        <div class="suggest-wrap" style="min-width:280px; flex:1;">
+          <input id="clientSearch" placeholder="Recherche client (nom / raison sociale)">
+          <div id="clientSuggestBox" class="suggestions hidden"></div>
+        </div>
+        <button class="btn acc" id="btnClientAdd" onclick="openClientCreate()">➕ Nouveau client</button>
+      </div>
+    </div>
+
+    <div class="clients-table-wrap">
+      <table class="table" id="clientsTable">
+        <thead>
+          <tr class="fixed-header">
+            <th style="width:55%;">Raison sociale / Nom</th>
+            <th style="width:25%;">ICE</th>
+            <th style="width:20%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="muted" style="margin-top:8px;">
+      Astuce : clique sur <b>👁️ Consulter</b> pour voir les infos et raccourcis (contrats, factures, docs).
+    </div>
+  </div>
+  <div id="clientConsultScreen" class="card hidden">
+  <div class="sp" style="gap:10px; flex-wrap:wrap;">
+    <div>
+      <h3 id="consultTitle" style="margin:0;">Consulter client</h3>
+      <div class="muted" id="consultSubtitle">—</div>
+      <div id="consultMsg" class="text-muted small" style="margin-top:6px;"></div>
+    </div>
+    <div class="toolbar" style="margin:0;">
+      <button class="btn" onclick="backToClientList()">← Retour</button>
+      <button class="btn warn" onclick="archiveClientInline()" id="btnConsultArchive">🗃️ Archiver</button>
+      <button class="btn" onclick="editClientInline()" id="btnConsultEdit">✏️ Modifier</button>
+      <button class="btn acc" onclick="saveClientInline()" id="btnConsultSave" disabled>💾 Enregistrer</button>
+    </div>
+  </div>
+
+  <!-- FORMULAIRE CLIENT (réutilise les mêmes IDs c_*) -->
+  <div class="grid two" style="gap:12px; margin-top:12px;">
+    <div class="grid" style="gap:8px">
+      <div class="row">
+        <label style="flex:1">Raison sociale / Nom<input id="c_legal_name" disabled></label>
+        <label style="flex:1">Forme juridique<input id="c_legal_form" disabled></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">ICE<input id="c_ice" disabled></label>
+        <label style="flex:1">IF<input id="c_if" disabled></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">RC<input id="c_rc" disabled></label>
+        <label style="flex:1">TP<input id="c_tp" disabled></label>
+      </div>
+      <label>Activité / objet social<textarea id="c_activity" disabled></textarea></label>
+      <div class="row">
+        <label style="flex:1">Capital<input id="c_capital" type="number" disabled></label>
+        <label style="flex:1">Date du premier contrat<input id="c_creation_date" type="date" disabled></label>
+      </div>
+      <label>Adresse du siège<input id="c_head_address" disabled></label>
+      <div class="row">
+        <label style="flex:1">Ville<input id="c_city" disabled></label>
+        <label style="flex:1">Email<input id="c_email" disabled></label>
+      </div>
+      <label>Téléphone<input id="c_phone" disabled></label>
+      <label>RIB<input id="c_rib" disabled></label>
+    </div>
+
+    <div class="grid" style="gap:8px">
+      <div class="muted">Représentant légal</div>
+      <div class="row">
+        <label style="flex:1">Nom<input id="c_rep_name" disabled></label>
+        <label style="flex:1">Qualité<input id="c_rep_quality" disabled></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">Date naissance<input id="c_rep_birth_date" type="date" disabled></label>
+        <label style="flex:1">Lieu naissance<input id="c_rep_birth_place" disabled></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">CIN<input id="c_rep_cin" disabled></label>
+        <label style="flex:1">Téléphone<input id="c_rep_phone" disabled></label>
+      </div>
+      <label>Adresse personnelle<input id="c_rep_address" disabled></label>
+
+      <div class="muted">Intermédiaire</div>
+      <div class="row">
+        <div class="suggest-wrap" style="flex:1">
+          <input id="c_int_name" list="intermediariesDatalist" placeholder="Rechercher un intermédiaire..." disabled>
+          <datalist id="intermediariesDatalist"></datalist>
+          <div id="intermediarySuggestions" class="suggestions hidden"></div>
+        </div>
+        <input id="c_int_phone" placeholder="Téléphone" disabled style="flex:1">
+      </div>
+      <div class="toolbar" style="justify-content:flex-end;">
+        <button class="btn" onclick="openNewIntermediaryModal()" style="font-size:12px;">➕ Nouvel intermédiaire</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTRATS -->
+  <div class="card" style="margin-top:12px;">
+    <div class="sp">
+      <div style="font-weight:900;">Contrats</div>
+      <div class="muted" id="consultContractsHint">—</div>
+    </div>
+    <table class="table" id="consultContractsTable">
+      <thead>
+        <tr><th>N°</th><th>Début</th><th>Fin</th><th>Statut</th><th class="right">Tarif</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- FACTURES -->
+  <div class="card" style="margin-top:12px;">
+    <div class="sp">
+      <div style="font-weight:900;">Factures</div>
+      <div class="muted" id="consultInvoicesHint">—</div>
+    </div>
+    <table class="table" id="consultInvoicesTable">
+      <thead>
+        <tr><th>N°</th><th>Date</th><th class="right">TTC</th><th>Statut</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</section>
+
+
+        <!-- CONTRATS -->
+        <section id="view-contracts" class="hidden">
+          <div class="sp">
+            <h3>Contrats</h3>
+            <div class="toolbar" style="align-items: center; gap: 12px; flex-wrap: nowrap;">
+              <div style="flex: 1; min-width: 200px;">
+                <input id="filterContractClient" placeholder="Filtrer par client (nom)" oninput="loadContracts()" style="margin: 0; width: 100%;">
+              </div>
+
+              <div style="flex: 1; min-width: 180px;">
+                <select id="filterContractStatus" onchange="loadContracts()" style="margin: 0; width: 100%;">
+                  <option value="">Statut (tous)</option>
+                  <option>En cours</option><option>Expiré</option><option>Résilié</option><option>Suspendu</option>
+                </select>
+              </div>
+
+              <div style="flex: 2; min-width: 280px;">
+                <input id="contractClientInput" list="clientsDatalist" placeholder="Choisir le client (par nom)" style="margin: 0; width: 100%;">
+                <datalist id="clientsDatalist"></datalist>
+              </div>
+
+              <button class="btn" onclick="newContractFromPicker()" style="white-space: nowrap; flex-shrink: 0;">➕ NOUVEAU CONTRAT</button>
+            </div>
+          </div>
+
+          <table class="table" id="contractsTable">
+            <thead>
+              <tr>
+                <th>N°</th><th>Client</th><th>Début</th><th>Fin</th><th>Jours restants</th><th>Tarif annuel</th><th>Statut</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- FACTURES -->
+        <section id="view-invoices" class="hidden">
+          <div class="sp">
+            <h3>Factures</h3>
+            <div class="toolbar">
+              <div class="row" style="flex:1; gap:8px; align-items:center; flex-wrap:nowrap;">
+                <div class="suggest-wrap" style="flex:1; min-width:200px;">
+                  <input id="invoiceClientSearch" placeholder="Rechercher par client..." list="invoiceClientsDatalist">
+                  <datalist id="invoiceClientsDatalist"></datalist>
+                </div>
+
+                <div style="flex:1; min-width:160px;">
+                  <select id="filterInvoiceStatus" onchange="loadInvoices()" style="margin-top:0;">
+                    <option value="">Tous les statuts</option>
+                    <option value="Payé">Payé</option>
+                    <option value="Impayé">Impayé</option>
+                    <option value="Partiel">Partiel</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="btn acc" onclick="openSalesJournalModal('all')" style="white-space: nowrap;">
+                📋 Journal des ventes
+              </button>
+            </div>
+          </div>
+
+          <table class="table" id="invoicesTable">
+            <thead>
+              <tr>
+                <th>N° Facture</th>
+                <th>Client</th>
+                <th>Période</th>
+                <th>Montant HT</th>
+                <th>TVA</th>
+                <th>Montant TTC</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- PAIEMENTS -->
+        <section id="view-payments" class="hidden">
+          <div class="toolbar" style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+            <button class="btn acc" id="tabUnpaid" onclick="showPaymentTab('unpaid')">📋 Factures impayées</button>
+            <button class="btn" id="tabPaid" onclick="showPaymentTab('paid')">✅ Factures payées</button>
+          </div>
+
+          <div id="paymentTabUnpaid">
+            <div class="toolbar">
+              <div class="row" style="flex:1; gap:8px; align-items:center; flex-wrap:nowrap;">
+                <div style="flex:1; min-width:200px;">
+                  <input id="filterInvClient" placeholder="Filtrer par client" oninput="loadUnpaid()" class="payment-input" style="margin-top:0;">
+                </div>
+
+                <div style="flex:1; min-width:180px;">
+                  <select id="filterInvStatus" onchange="loadUnpaid()" class="payment-input" style="margin-top:0;">
+                    <option value="">Tous les statuts</option>
+                    <option>Impayé</option>
+                    <option>Partiel</option>
+                  </select>
+                </div>
+
+                <button class="btn warn" onclick="openSalesJournalModal('unpaid')" style="white-space: nowrap;">
+                  📋 État des impayés
+                </button>
+              </div>
+            </div>
+
+            <table class="table" id="unpaidTable">
+              <thead>
+                <tr>
+                  <th>Client</th><th>N° facture</th><th>Période</th><th>Montant TTC</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr><td colspan="5" id="unpaidTotal" class="right"></td></tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div id="paymentTabPaid" class="hidden">
+            <div class="toolbar">
+              <div class="row" style="flex:1; gap:8px; align-items:center; flex-wrap:nowrap;">
+                <div class="row" style="flex:1; gap:8px; align-items:center; min-width:250px;">
+                  <label style="display:flex; align-items:center; gap:4px; margin:0; font-size:12px; white-space:nowrap;">
+                    Date Du
+                    <input type="date" id="filterPaidDateFrom" onchange="loadPaidInvoices()" class="payment-input" style="margin-top:0; width:120px;">
+                  </label>
+                  <label style="display:flex; align-items:center; gap:4px; margin:0; font-size:12px; white-space:nowrap;">
+                    Au
+                    <input type="date" id="filterPaidDateTo" onchange="loadPaidInvoices()" class="payment-input" style="margin-top:0; width:120px;">
+                  </label>
+                </div>
+
+                <div style="flex:1; min-width:180px;">
+                  <select id="sortPaidBy" onchange="loadPaidInvoices()" class="payment-input" style="margin-top:0;">
+                    <option value="paid_date_desc">Date paiement (récent)</option>
+                    <option value="paid_date_asc">Date paiement (ancien)</option>
+                  </select>
+                </div>
+
+                <button class="btn" onclick="clearPaidFilters()" style="white-space:nowrap; margin-top:0;">
+                  🗑️ Supprimer les filtres
+                </button>
+                <button class="btn success" onclick="openSalesJournalModal('paid')" style="white-space: nowrap;">
+                  📋 Relevé des payées
+                </button>
+              </div>
+            </div>
+
+            <table class="table" id="paidTable">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>N° facture</th>
+                  <th>Date facture</th>
+                  <th>Montant TTC</th>
+                  <th>Date paiement</th>
+                  <th>Mode</th>
+                  <th>Référence</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr><td colspan="8" id="paidTotal" class="right"></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <!-- DOCUMENTS -->
+        <section id="view-documents" class="hidden">
+          <h3>Documents (PDF)</h3>
+          <div class="toolbar">
+            <select id="docClientSelect"></select>
+            <select id="docTypeFilter" onchange="loadDocuments()">
+              <option value="">Type (tous)</option>
+              <option>Certificat négatif</option><option>CIN du gérant</option><option>Statuts</option><option>Attestation TP</option><option>RC</option>
+              <option>Contrat signé</option><option>PV</option><option>Annexe</option><option>Autre</option>
+            </select>
+            <button class="btn" onclick="triggerUpload()">📤 Upload (multi)</button>
+            <button class="btn" onclick="downloadZip()">📦 Télécharger ZIP (client)</button>
+          </div>
+
+          <input id="docFileInput" type="file" accept="application/pdf" multiple class="hidden" />
+
+          <table class="table" id="docsTable">
+            <thead>
+              <tr>
+                <th>Nom du fichier</th><th>Type doc</th><th>Date d'upload</th><th>Taille</th><th>Client</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+      </main>
+    </div><!-- /app-body -->
+  </div><!-- /app-shell -->
+
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <!-- MODALS -->
+  <div class="modal" id="intermediaryModal">
+    <div class="box" style="max-width:500px;">
+      <div class="sp">
+        <h4>Nouvel intermédiaire</h4>
+        <button class="btn" onclick="closeIntermediaryModal()">✖</button>
+      </div>
+      <div class="grid" style="gap:12px; margin-top:16px;">
+        <label>Nom complet * <input type="text" id="new_int_name" class="payment-input" placeholder="Nom de l'intermédiaire"></label>
+        <label>Téléphone <input type="text" id="new_int_phone" class="payment-input" placeholder="Téléphone"></label>
+        <label>Email <input type="email" id="new_int_email" class="payment-input" placeholder="Email"></label>
+        <label>Adresse <textarea id="new_int_address" class="payment-input" placeholder="Adresse" rows="3"></textarea></label>
+        <label>Notes <textarea id="new_int_notes" class="payment-input" placeholder="Informations supplémentaires..." rows="2"></textarea></label>
+      </div>
+      <div class="toolbar" style="margin-top:20px;">
+        <button class="btn" onclick="closeIntermediaryModal()">Annuler</button>
+        <button class="btn acc" onclick="saveNewIntermediary()">💾 Créer l'intermédiaire</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="contractModal">
+    <div class="box" style="max-width:500px;">
+      <div class="sp">
+        <h4>Nouveau Contrat</h4>
+        <button class="btn" onclick="closeContractModal()">✖</button>
+      </div>
+      <div class="grid" style="gap:12px; margin-top:16px;">
+        <label>Client *
+          <input type="text" id="modalClientInput" list="modalClientsDatalist" placeholder="Rechercher un client..." class="payment-input">
+          <datalist id="modalClientsDatalist"></datalist>
+        </label>
+
+        <div class="row" style="gap:12px;">
+          <label style="flex:1">Date de début *
+            <input type="date" id="modalStartDate" class="payment-input">
+          </label>
+          <label style="flex:1">Date de fin *
+            <input type="date" id="modalEndDate" class="payment-input">
+          </label>
+        </div>
+
+        <label>Montant annuel (DH) *
+          <input type="number" step="0.01" id="modalAnnualFee" class="payment-input" placeholder="0.00">
+        </label>
+      </div>
+      <div class="toolbar" style="margin-top:20px;">
+        <button class="btn" onclick="closeContractModal()">Annuler</button>
+        <button class="btn acc" onclick="createNewContract()">💾 Créer le contrat</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="salesJournalModal">
+    <div class="box" style="max-width:500px;">
+      <div class="sp">
+        <h4 id="journalModalTitle">Journal des Ventes</h4>
+        <button class="btn" onclick="closeSalesJournalModal()">✖</button>
+      </div>
+      <div class="grid" style="gap:12px; margin-top:16px;">
+        <div class="row" style="gap:12px;">
+          <label style="flex:1">Date de début *
+            <input type="date" id="journalStartDate" class="payment-input">
+          </label>
+          <label style="flex:1">Date de fin *
+            <input type="date" id="journalEndDate" class="payment-input">
+          </label>
+        </div>
+
+        <label id="journalStatusLabel">Statut des factures
+          <select id="journalStatus" class="payment-input">
+            <option value="">Tous les statuts</option>
+            <option value="Payé">Payées uniquement</option>
+            <option value="Impayé">Impayées uniquement</option>
+            <option value="Partiel">Partiellement payées</option>
+          </select>
+        </label>
+
+        <div style="background:var(--card); padding:12px; border-radius:8px; border:1px solid var(--border);">
+          <div style="font-size:12px; color:var(--muted); margin-bottom:4px;" id="journalSummaryTitle">Résumé de la période</div>
+          <div id="journalSummary" style="font-size:13px;">Sélectionnez une période pour voir le résumé</div>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:20px;">
+        <button class="btn" onclick="closeSalesJournalModal()">Annuler</button>
+        <button class="btn acc" id="journalPrintButton" onclick="generateSalesJournal()">🖨️ Imprimer le journal</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="invoiceModal">
+    <div class="box">
+      <div class="sp"><h4>Prévisualisation facture</h4><button class="btn" onclick="closeInvoice()">✖</button></div>
+      <div id="invoicePreview" class="print-area"></div>
+      <div class="toolbar">
+        <button class="btn acc" onclick="printInvoicePreview()">🖨️ Imprimer (papier entête)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="paymentModal">
+    <div class="box">
+      <div class="sp">
+        <h4>Enregistrer le paiement</h4>
+        <button class="btn" onclick="closePaymentModal()">✖</button>
+      </div>
+      <div class="grid" style="gap:12px; margin-top:16px;">
+        <label>Date de paiement <input type="date" id="paymentDate" class="payment-input"></label>
+
+        <label>Mode de paiement
+          <select id="paymentMode" class="payment-input">
+            <option value="Virement">Virement</option>
+            <option value="Chèque">Chèque</option>
+            <option value="Espèces">Espèces</option>
+            <option value="Carte">Carte</option>
+            <option value="Prélèvement">Prélèvement</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </label>
+
+        <label>Référence <input type="text" id="paymentReference" placeholder="Numéro de chèque, référence virement..." class="payment-input"></label>
+
+        <label>Montant <input type="number" step="0.01" id="paymentAmount" class="payment-input"></label>
+
+        <label>Notes supplémentaires <textarea id="paymentNotes" placeholder="Informations complémentaires..." class="payment-input" rows="3"></textarea></label>
+      </div>
+      <div class="toolbar" style="margin-top:20px;">
+        <button class="btn" onclick="closePaymentModal()">Annuler</button>
+        <button class="btn acc" onclick="confirmPayment()">💾 Enregistrer le paiement</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip-utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.43.0/build/docxtemplater.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Ton app -->
+  <script src="app.js"></script>
+</body>
+</html>
