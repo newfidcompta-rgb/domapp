@@ -342,6 +342,9 @@
       <div style="font-weight:900;">Contrats</div>
       <div class="muted" id="consultContractsHint">—</div>
     </div>
+    <div class="muted" id="consultSelectedContractHint" style="margin-top:6px;">
+      Contrat sélectionné : <b>—</b>
+    </div>
     <table class="table" id="consultContractsTable">
       <thead>
         <tr><th>N°</th><th>Début</th><th>Fin</th><th>Statut</th><th class="right">Tarif</th></tr>
@@ -349,7 +352,41 @@
       <tbody></tbody>
     </table>
   </div>
+<!-- SERVICES (NOUVEAU) -->
+  <div class="card" style="margin-top:12px;">
+    <div class="sp">
+      <div style="font-weight:900;">Services</div>
+      <div class="toolbar" style="margin:0;">
+       <button class="btn" id="btnAddService" onclick="openServiceModal()" disabled
+          title="Sélectionne d’abord un contrat dans la liste ci-dessus">
+         ➕ Ajouter un service
+        </button>
 
+        <button class="btn acc" id="btnBillService" onclick="openServiceInvoiceModal()" disabled
+          title="Sélectionne d’abord un contrat dans la liste ci-dessus">
+         🧾 Facturer un service
+         </button>
+      </div>
+    </div>
+
+    <div class="muted" id="consultServicesHint" style="margin-top:6px;">—</div>
+
+    <table class="table" id="consultServicesTable" style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Périodicité</th>
+          <th>Début</th>
+          <th>Fin</th>
+          <th class="right">Tarif TTC</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6" class="muted">Aucun service</td></tr>
+      </tbody>
+    </table>
+  </div>
   <!-- FACTURES -->
   <div class="card" style="margin-top:12px;">
     <div class="sp">
@@ -623,6 +660,151 @@
       </div>
     </div>
   </div>
+<!-- =========================
+     MODAL: AJOUTER SERVICE AU CONTRAT
+========================= -->
+<div class="modal" id="serviceModal">
+  <div class="box" style="max-width:560px;">
+    <div class="sp">
+      <h4>🧩 Ajouter un service au contrat</h4>
+      <button class="btn" onclick="closeServiceModal()">✖</button>
+    </div>
+
+    <div class="grid" style="gap:12px; margin-top:16px;">
+
+      <label>Contrat (référence)
+        <input id="svc_contract_ref" class="payment-input" placeholder="Ex: C-2025-001" disabled>
+      </label>
+
+      <div class="row" style="gap:12px;">
+        <label style="flex:1">Type de service *
+          <select id="svc_code" class="payment-input">
+            <option value="">— Choisir —</option>
+            <option value="DOM_ANNUEL">Domiciliation</option>
+            <option value="BUREAU">Sous-location bureau</option>
+            <option value="SALLE_REUNION">Salle de réunion</option>
+            <option value="AUTRE">Autre</option>
+          </select>
+        </label>
+
+        <label style="flex:1">Périodicité *
+          <select id="svc_periodicity" class="payment-input">
+            <option value="">— Choisir —</option>
+            <option value="one_time">Ponctuel</option>
+            <option value="daily">Journalier</option>
+            <option value="weekly">Hebdomadaire</option>
+            <option value="monthly">Mensuel</option>
+            <option value="yearly">Annuel</option>
+          </select>
+        </label>
+      </div>
+
+      <label>Nom du service *
+        <input id="svc_name" class="payment-input" placeholder="Ex: Sous-location bureau">
+      </label>
+
+      <label>Description (optionnel)
+        <textarea id="svc_description" class="payment-input" rows="2" placeholder="Détails..."></textarea>
+      </label>
+
+      <div class="row" style="gap:12px;">
+        <label style="flex:1">Tarif TTC (DH) *
+          <input id="svc_price_ttc" type="number" step="0.01" class="payment-input" placeholder="0.00">
+        </label>
+        <label style="flex:1">TVA *
+          <select id="svc_tva_rate" class="payment-input">
+            <option value="0.20">20%</option>
+            <option value="0.10">10%</option>
+            <option value="0.00">0%</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row" style="gap:12px;">
+        <label style="flex:1">Date début *
+          <input id="svc_start_date" type="date" class="payment-input">
+        </label>
+        <label style="flex:1">Date fin (optionnel)
+          <input id="svc_end_date" type="date" class="payment-input">
+        </label>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px;">
+        <input id="svc_is_active" type="checkbox" checked>
+        Service actif
+      </label>
+
+      <div class="toolbar" style="margin-top:6px;">
+        <span class="muted" id="svc_msg"></span>
+        <div class="right"></div>
+        <button class="btn" onclick="closeServiceModal()">Annuler</button>
+        <button class="btn acc" onclick="saveService()">💾 Enregistrer le service</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- =========================
+     MODAL: CRÉER FACTURE D'UN SERVICE
+========================= -->
+<div class="modal" id="serviceInvoiceModal">
+  <div class="box" style="max-width:560px;">
+    <div class="sp">
+      <h4>🧾 Créer facture (service)</h4>
+      <button class="btn" onclick="closeServiceInvoiceModal()">✖</button>
+    </div>
+
+    <div class="grid" style="gap:12px; margin-top:16px;">
+
+      <label>Contrat (référence)
+        <input id="sinv_contract_ref" class="payment-input" disabled>
+      </label>
+
+      <label>Service *
+        <select id="sinv_service_select" class="payment-input">
+          <option value="">— Choisir un service —</option>
+          <!-- options injectées en JS -->
+        </select>
+      </label>
+
+      <div class="row" style="gap:12px;">
+        <label style="flex:1">Période du *
+          <input id="sinv_period_start" type="date" class="payment-input">
+        </label>
+        <label style="flex:1">Au *
+          <input id="sinv_period_end" type="date" class="payment-input">
+        </label>
+      </div>
+
+      <div class="row" style="gap:12px;">
+        <label style="flex:1">Montant TTC (DH) *
+          <input id="sinv_amount_ttc" type="number" step="0.01" class="payment-input" placeholder="0.00">
+        </label>
+        <label style="flex:1">TVA
+          <select id="sinv_tva_rate" class="payment-input">
+            <option value="0.20">20%</option>
+            <option value="0.10">10%</option>
+            <option value="0.00">0%</option>
+          </select>
+        </label>
+      </div>
+
+      <label>Libellé affiché (optionnel)
+        <input id="sinv_label" class="payment-input" placeholder="Ex: Sous-location bureau — Octobre 2025">
+      </label>
+
+      <div class="toolbar" style="margin-top:6px;">
+        <span class="muted" id="sinv_msg"></span>
+        <div class="right"></div>
+        <button class="btn" onclick="closeServiceInvoiceModal()">Annuler</button>
+        <button class="btn acc" onclick="createServiceInvoice()">🧾 Générer la facture</button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
   <div class="modal" id="salesJournalModal">
     <div class="box" style="max-width:500px;">

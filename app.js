@@ -248,6 +248,11 @@ console.log("Supabase URL utilisée (DOMAPP):", supabase.supabaseUrl);
 // journalStatus change
 // btnNewClient onclick
 // btnNewContract onclick
+// =========================
+// MODAL MANAGER — FERMETURE UNIQUE
+// =========================
+
+
 // show('dashboard')
 // loadSettings().then(refreshKPIs)
 // setupInvoiceActions()
@@ -272,6 +277,10 @@ console.log("Supabase URL utilisée (DOMAPP):", supabase.supabaseUrl);
 
 
 let currentJournalType = 'all';
+// ====== Sélection contrat (fiche client) ======
+let selectedContractId = null;
+let selectedContractNumber = null;
+let selectedContractRow = null; // objet contrat sélectionné (si besoin)
 
 /* ====== Helpers UI ====== */
 const views = ["dashboard","settings","clients","contracts","invoices","payments","documents"];
@@ -316,6 +325,40 @@ if (key) {
   if(view==="invoices") { loadInvoices(); loadInvoiceClients(); }
   if(view==="documents") { loadDocClients(); }
   if(view==="payments") { showPaymentTab('unpaid'); }
+}
+
+function setSelectedContractUI(contract) {
+  selectedContractId = contract?.id || null;
+  selectedContractNumber = contract?.number || null;
+  selectedContractRow = contract || null;
+
+  // Hint "Contrat sélectionné"
+  const hint = document.getElementById('consultSelectedContractHint');
+  if (hint) {
+    hint.innerHTML = `Contrat sélectionné : <b>${selectedContractNumber || '—'}</b>`;
+  }
+
+  // Activer / désactiver les boutons Services
+  const btnAdd = document.getElementById('btnAddService');
+  const btnBill = document.getElementById('btnBillService');
+
+  const enable = !!selectedContractId;
+  if (btnAdd) btnAdd.disabled = !enable;
+  if (btnBill) btnBill.disabled = !enable;
+
+  // Hint services
+  const sHint = document.getElementById('consultServicesHint');
+  if (sHint) {
+    sHint.textContent = enable
+      ? `Services du contrat ${selectedContractNumber}`
+      : `Sélectionne un contrat pour gérer les services.`;
+  }
+
+  // Reset table services quand pas de contrat
+  if (!enable) {
+    const tbody = document.querySelector('#consultServicesTable tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="muted">Sélectionne un contrat</td></tr>`;
+  }
 }
 
 /* ===== NAV: item actif = item cliqué (même si data-view identique) ===== */
@@ -1636,6 +1679,11 @@ async function printSalesJournal(invoices, startDate, endDate, status) {
   `;
   
   const printWindow = window.open('', '_blank');
+
+if (!printWindow) {
+  alert("⚠️ Fenêtre d'impression bloquée par le navigateur (popup). Autorise les popups pour ce site.");
+  return;
+}
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
@@ -1997,6 +2045,11 @@ function buildInvoiceHTML(inv, contract, settings, opts={}){
 function printInvoicePreview() {
   const invoiceContent = document.getElementById('invoicePreview').innerHTML;
   const printWindow = window.open('', '_blank');
+
+if (!printWindow) {
+  alert("⚠️ Fenêtre d'impression bloquée par le navigateur (popup). Autorise les popups pour ce site.");
+  return;
+}
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
@@ -2386,6 +2439,11 @@ async function printInvoice(invoiceId) {
     const html = buildInvoiceHTML(invoice, invoice.contracts, settings);
     
     const printWindow = window.open('', '_blank');
+
+if (!printWindow) {
+  alert("⚠️ Fenêtre d'impression bloquée par le navigateur (popup). Autorise les popups pour ce site.");
+  return;
+}
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -3006,7 +3064,7 @@ async function openClientConsult(clientId, startEdit){
   document.getElementById('btnConsultSave').disabled = true;
 
   showConsultScreen(true);
-
+  setSelectedContractUI(null);
   await loadConsultContracts(clientId);
   await loadConsultInvoices(clientId);
 
@@ -3113,7 +3171,7 @@ async function loadConsultContracts(clientId){
 
   const { data, error } = await supabase
     .from('contracts')
-    .select('number,start_date,end_date,status,annual_fee')
+    .select('id, number, start_date, end_date, status, annual_fee')
     .eq('client_id', clientId)
     .order('number', { ascending: false });
 
@@ -3129,15 +3187,34 @@ async function loadConsultContracts(clientId){
     return;
   }
 
-  tbody.innerHTML = data.map(r=>`
-    <tr>
-      <td>${r.number||""}</td>
-      <td>${ddmmyyyy(r.start_date)}</td>
-      <td>${ddmmyyyy(r.end_date)}</td>
-      <td>${r.status||""}</td>
-      <td class="right">${fmtMoney(r.annual_fee)}</td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = (data || []).map(r => `
+  <tr data-contract-id="${r.id}">
+    <td>${r.number || ""}</td>
+    <td>${ddmmyyyy(r.start_date)}</td>
+    <td>${ddmmyyyy(r.end_date)}</td>
+    <td>${r.status || ""}</td>
+    <td class="right">${fmtMoney(r.annual_fee)}</td>
+  </tr>
+`).join('');
+// lignes cliquables + highlight sélection
+tbody.querySelectorAll('tr[data-contract-id]').forEach(tr => {
+  tr.addEventListener('click', () => {
+    const id = tr.getAttribute('data-contract-id');
+    const contract = (data || []).find(x => x.id === id);
+    if (!contract) return;
+
+    // highlight
+    tbody.querySelectorAll('tr').forEach(x => x.classList.remove('row-selected'));
+    tr.classList.add('row-selected');
+
+    // ✅ set selection + enable buttons
+    setSelectedContractUI(contract);
+    loadConsultServices(contract.id);
+
+    // ✅ (étape suivante) charger services du contrat
+    // loadConsultServices(contract.id);
+    });
+});
 }
 
 /* --- Factures client --- */
@@ -3244,3 +3321,324 @@ window.openClientModalNew = function(){
   // fallback (ancien flux)
   if (typeof window.newClient === "function") return window.newClient();
 };
+
+window.openServiceModal = function(){
+  if(!selectedContractId){
+    alert("Sélectionne d’abord un contrat dans la liste.");
+    return;
+  }
+  document.getElementById('serviceModal').style.display = 'flex';
+
+  // (optionnel) afficher référence contrat dans le modal
+  const ref = document.getElementById('svc_contract_ref');
+  if(ref) ref.value = selectedContractNumber || '';
+};
+
+
+
+function closeServiceModal() {
+  document.getElementById('serviceModal').style.display = 'none';
+
+  document.getElementById('svc_code').value = '';
+  document.getElementById('svc_periodicity').value = '';
+  document.getElementById('svc_name').value = '';
+  document.getElementById('svc_description').value = '';
+  document.getElementById('svc_price_ttc').value = '';
+  document.getElementById('svc_tva_rate').value = '0.20';
+  document.getElementById('svc_start_date').value = '';
+  document.getElementById('svc_end_date').value = '';
+  document.getElementById('svc_is_active').checked = true;
+}
+function closeServiceInvoiceModal() {
+  document.getElementById('serviceInvoiceModal').style.display = 'none';
+
+  document.getElementById('sinv_service_select').value = '';
+  document.getElementById('sinv_period_start').value = '';
+  document.getElementById('sinv_period_end').value = '';
+  document.getElementById('sinv_amount_ttc').value = '';
+  document.getElementById('sinv_tva_rate').value = '0.20';
+  document.getElementById('sinv_label').value = '';
+}
+async function loadConsultServices(contractId){
+  const hint = document.getElementById('consultServicesHint');
+  const tbody = document.querySelector('#consultServicesTable tbody');
+  if(!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="6" class="muted">Chargement...</td></tr>`;
+
+  const { data, error } = await supabase
+    .from('contract_services')
+    .select('id, code, name, periodicity, start_date, end_date, unit_price_ttc, is_active')
+    .eq('contract_id', contractId)
+    .order('start_date', { ascending: false });
+
+  if(error){
+    console.error(error);
+    tbody.innerHTML = `<tr><td colspan="6" class="muted">Erreur chargement services</td></tr>`;
+    if(hint) hint.textContent = "Erreur chargement services";
+    return;
+  }
+
+  if(hint) hint.textContent = `${(data||[]).length} service(s) — Contrat ${selectedContractNumber||''}`;
+
+  if(!data || data.length===0){
+    tbody.innerHTML = `<tr><td colspan="6" class="muted">Aucun service</td></tr>`;
+    return;
+  }
+
+  const frPeriod = (p)=>{
+    const map = {one_time:'Ponctuel', daily:'Journalier', weekly:'Hebdo', monthly:'Mensuel', yearly:'Annuel'};
+    return map[p] || p || '';
+  };
+
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td>${s.name || s.code || ''}</td>
+      <td>${frPeriod(s.periodicity)}</td>
+      <td>${ddmmyyyy(s.start_date)}</td>
+      <td>${ddmmyyyy(s.end_date)}</td>
+      <td class="right">${fmtMoney(s.unit_price_ttc)}</td>
+      <td>${s.is_active ? 'Actif' : 'Inactif'}</td>
+    </tr>
+  `).join('');
+}
+async function saveService(){
+  if(!selectedContractId){
+    alert("Sélectionne d’abord un contrat.");
+    return;
+  }
+  if(!consultClientId){
+    alert("Client non détecté.");
+    return;
+  }
+
+  const code = document.getElementById('svc_code')?.value?.trim();
+  const periodicity = document.getElementById('svc_periodicity')?.value?.trim();
+  const name = document.getElementById('svc_name')?.value?.trim();
+  const description = document.getElementById('svc_description')?.value?.trim() || null;
+
+  const unit_price_ttc = parseFloat(document.getElementById('svc_price_ttc')?.value || '0') || 0;
+  const tva_rate = parseFloat(document.getElementById('svc_tva_rate')?.value || '0.20');
+  const start_date = document.getElementById('svc_start_date')?.value;
+  const end_date = document.getElementById('svc_end_date')?.value || null;
+  const is_active = !!document.getElementById('svc_is_active')?.checked;
+
+  const msg = document.getElementById('svc_msg');
+
+  // validations simples
+  if(!code){ if(msg) msg.textContent="Type de service requis."; else alert("Type de service requis."); return; }
+  if(!periodicity){ if(msg) msg.textContent="Périodicité requise."; else alert("Périodicité requise."); return; }
+  if(!name){ if(msg) msg.textContent="Nom du service requis."; else alert("Nom du service requis."); return; }
+  if(!start_date){ if(msg) msg.textContent="Date début requise."; else alert("Date début requise."); return; }
+  if(unit_price_ttc <= 0){ if(msg) msg.textContent="Tarif TTC doit être > 0."; else alert("Tarif TTC doit être > 0."); return; }
+  if(end_date && end_date < start_date){ if(msg) msg.textContent="Date fin doit être ≥ date début."; else alert("Date fin invalide."); return; }
+
+  if(msg) msg.textContent = "Enregistrement..." ;
+
+  const row = {
+    contract_id: selectedContractId,
+    client_id: consultClientId,
+    code,
+    name,
+    description,
+    periodicity,
+    unit_price_ttc,
+    tva_rate,
+    start_date,
+    end_date,
+    is_active
+  };
+
+  const { error } = await supabase.from('contract_services').insert(row);
+
+  if(error){
+    console.error(error);
+    if(msg) msg.textContent = "Erreur: " + error.message;
+    else alert("Erreur: " + error.message);
+    return;
+  }
+
+  if(msg) msg.textContent = "✅ Service ajouté";
+  closeServiceModal();
+
+  // refresh liste services
+  await loadConsultServices(selectedContractId);
+}
+
+async function loadServicesForInvoicePicker(contractId){
+  const sel = document.getElementById('sinv_service_select');
+  const msg = document.getElementById('sinv_msg');
+  if(!sel) return;
+
+  sel.innerHTML = `<option value="">— Choisir un service —</option>`;
+
+  if(!contractId){
+    if(msg) msg.textContent = "⚠️ Aucun contrat sélectionné.";
+    console.warn("[loadServicesForInvoicePicker] contractId vide");
+    return;
+  }
+
+  console.log("[loadServicesForInvoicePicker] contractId =", contractId);
+
+  const { data, error } = await supabase
+    .from('contract_services')
+    .select('id, code, name, periodicity, unit_price_ttc, tva_rate, start_date, end_date, is_active')
+    .eq('contract_id', contractId)
+    .eq('is_active', true)
+    .order('start_date', { ascending: false });
+
+  if(error){
+    console.error("[loadServicesForInvoicePicker] error:", error);
+    if(msg) msg.textContent = "❌ Erreur chargement services: " + error.message;
+    return;
+  }
+
+  console.log("[loadServicesForInvoicePicker] services =", data);
+
+  if(!data || data.length === 0){
+    if(msg) msg.textContent = "ℹ️ Aucun service actif pour ce contrat. Ajoute d’abord un service.";
+    return;
+  }
+
+  if(msg) msg.textContent = `${data.length} service(s) disponible(s).`;
+
+  data.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = `${s.name || s.code} — ${s.periodicity || ''} — ${fmtMoney(s.unit_price_ttc)} DH`;
+
+    opt.dataset.name = s.name || s.code || '';
+    opt.dataset.price = s.unit_price_ttc ?? '';
+    opt.dataset.tva = s.tva_rate ?? '0.20';
+
+    sel.appendChild(opt);
+  });
+}
+
+window.openServiceInvoiceModal = async function(){
+  const msg = document.getElementById('sinv_msg');
+
+  if(!selectedContractId){
+    alert("Sélectionne d’abord un contrat dans la liste.");
+    return;
+  }
+
+  document.getElementById('serviceInvoiceModal').style.display = 'flex';
+
+  const ref = document.getElementById('sinv_contract_ref');
+  if(ref) ref.value = selectedContractNumber || '';
+
+  if(msg) msg.textContent = "Chargement des services...";
+  document.getElementById('sinv_amount_ttc').value = '';
+  document.getElementById('sinv_label').value = '';
+
+  await loadServicesForInvoicePicker(selectedContractId);
+};
+
+
+
+async function createServiceInvoice(){
+  if(!selectedContractId){
+    alert("Sélectionne d’abord un contrat.");
+    return;
+  }
+  if(!consultClientId){
+    alert("Client non détecté.");
+    return;
+  }
+
+  const serviceId = document.getElementById('sinv_service_select').value;
+  const period_start = document.getElementById('sinv_period_start').value;
+  const period_end = document.getElementById('sinv_period_end').value;
+
+  const amount_ttc = parseFloat(document.getElementById('sinv_amount_ttc').value || '0') || 0;
+  const tva_rate = parseFloat(document.getElementById('sinv_tva_rate').value || '0.20');
+
+  const label = (document.getElementById('sinv_label').value || '').trim() || 'Service';
+  const msg = document.getElementById('sinv_msg');
+
+  if(!serviceId){ if(msg) msg.textContent="Service requis."; else alert("Service requis."); return; }
+  if(!period_start || !period_end){ if(msg) msg.textContent="Période requise."; else alert("Période requise."); return; }
+  if(period_end < period_start){ if(msg) msg.textContent="Date fin doit être ≥ date début."; else alert("Dates invalides."); return; }
+  if(amount_ttc <= 0){ if(msg) msg.textContent="Montant TTC doit être > 0."; else alert("Montant invalide."); return; }
+
+  if(msg) msg.textContent = "Génération..." ;
+
+  // calcul HT depuis TTC (comme tu fais déjà)
+  const amount_ht = amount_ttc / (1 + (tva_rate || 0));
+  const today = new Date().toISOString().slice(0,10);
+
+  // numéro de facture (tu as déjà nextNumber())
+  const number = await nextNumber('invoices', 'F', period_start);
+
+  // 1) Insert facture (table existante)
+  const invRow = {
+    number,
+    contract_id: selectedContractId,
+    client_id: consultClientId,
+    issue_date: today,
+    period_start,
+    period_end,
+    amount_ht: +amount_ht.toFixed(2),
+    tva_rate: tva_rate,
+    amount_ttc: +amount_ttc.toFixed(2),
+    status: 'Impayé'
+  };
+
+  const { data: inv, error: invErr } = await supabase
+    .from('invoices')
+    .insert(invRow)
+    .select()
+    .single();
+
+  if(invErr){
+    console.error(invErr);
+    if(msg) msg.textContent = "Erreur: " + invErr.message;
+    else alert(invErr.message);
+    return;
+  }
+
+  // 2) Insert ligne de facture (nouvelle table invoice_items)
+  const itemRow = {
+    invoice_id: inv.id,
+    service_id: serviceId,
+    label: label,
+    qty: 1,
+    unit_price_ttc: +amount_ttc.toFixed(2),
+    tva_rate: tva_rate,
+    amount_ht: +amount_ht.toFixed(2),
+    amount_ttc: +amount_ttc.toFixed(2)
+  };
+
+  const { error: itemErr } = await supabase.from('invoice_items').insert(itemRow);
+  if(itemErr){
+    console.error(itemErr);
+    // on ne supprime pas la facture automatiquement, mais on informe
+    alert("Facture créée, mais erreur ligne facture: " + itemErr.message);
+  }
+
+  if(msg) msg.textContent = "✅ Facture créée";
+  closeServiceInvoiceModal();
+
+  // refresh UI
+  if(typeof loadConsultInvoices === 'function') await loadConsultInvoices(consultClientId);
+  if(typeof loadInvoices === 'function') await loadInvoices();
+  if(typeof refreshKPIs === 'function') await refreshKPIs();
+}
+(function initServiceInvoicePicker(){
+  const sel = document.getElementById('sinv_service_select');
+  if(!sel) return;
+
+  sel.addEventListener('change', (e) => {
+    const opt = e.target.selectedOptions?.[0];
+    if(!opt || !opt.value) return;
+
+    document.getElementById('sinv_amount_ttc').value = opt.dataset.price || '';
+    document.getElementById('sinv_tva_rate').value = String(opt.dataset.tva || '0.20');
+
+    const labelEl = document.getElementById('sinv_label');
+    if(labelEl && !labelEl.value){
+      labelEl.value = opt.dataset.name || 'Service';
+    }
+  });
+})();
