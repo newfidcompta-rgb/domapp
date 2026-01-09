@@ -496,11 +496,16 @@ saveSettings = async function(){ await _orig_saveSettings(); setSettingsEditable
 /* ================= CLIENTS ================= */
 
 window.clientsMode = 'active';
-
 window.setClientsMode = function(mode){
   window.clientsMode = (mode === 'archived') ? 'archived' : 'active';
+
+  // ✅ fermer automatiquement le formulaire/consultation
+  if (typeof showConsultScreen === "function") showConsultScreen(false);
+  consultClientId = null;
+
   loadClients();
 };
+
 
 
 
@@ -729,11 +734,51 @@ show = function(view) {
 /* ======= CONTRATS ======= */
 async function ensureContractStatuses(){
   const today = new Date().toISOString().slice(0,10);
-  const { data } = await supabase.from('contracts').select('id,end_date,status');
-  const toExpire = (data||[])
-    .filter(c => c.end_date && c.status!=='Résilié' && c.status!=='Expiré' && c.end_date < today)
-    .map(c => c.id);
-  if(toExpire.length){ await supabase.from('contracts').update({status:'Expiré'}).in('id', toExpire); }
+
+  const { data: all, error } = await supabase
+    .from('contracts')
+    .select('id, client_id, start_date, end_date, status');
+
+  if(error){ console.error(error); return; }
+
+  // regrouper contrats par client
+  const byClient = new Map();
+  (all||[]).forEach(c => {
+    if(!byClient.has(c.client_id)) byClient.set(c.client_id, []);
+    byClient.get(c.client_id).push(c);
+  });
+
+  const toExpire = [];
+  const toRenewed = [];
+
+  for (const c of (all||[])) {
+    if (!c.end_date) continue;
+    if (c.status === 'Résilié') continue;
+
+    // déjà renouvelé -> on touche pas
+    if (c.status === 'Renouvelé') continue;
+
+    if (c.end_date < today) {
+      const list = byClient.get(c.client_id) || [];
+
+      // ✅ si un autre contrat existe après celui-ci, alors c'est "Renouvelé"
+      const hasNewer = list.some(x =>
+        x.id !== c.id &&
+        x.status !== 'Résilié' &&
+        x.start_date && x.start_date > c.end_date
+      );
+
+      if (hasNewer) toRenewed.push(c.id);
+      else toExpire.push(c.id);
+    }
+  }
+
+  if (toRenewed.length) {
+    await supabase.from('contracts').update({ status: 'Renouvelé' }).in('id', toRenewed);
+  }
+  if (toExpire.length) {
+    await supabase.from('contracts').update({ status: 'Expiré' }).in('id', toExpire);
+  }
 }
 
 function leftDays(end){ const d=daysLeft(end); return isNaN(d)?"":d; }
@@ -952,6 +997,10 @@ async function renewContract(id){
   if(insErr){ alert(insErr.message); return; }
   alert(`Nouveau contrat créé (${num}) : ${ddmmyyyy(startNext)} → ${ddmmyyyy(endNext)}`);
   await loadContracts(); refreshKPIs();
+  await supabase
+  .from('contracts')
+  .update({ status: 'Renouvelé' })
+  .eq('id', id);
 }
 
 async function deleteContract(id){
@@ -1929,6 +1978,38 @@ async function editInvoice(contractId){
   document.getElementById('invoiceModal').style.display='flex';
 }
 
+// fonction appelée pour generer une facture déja existante
+async function openInvoiceById(invoiceId, opts = {}) {
+  const { data: invoice, error } = await supabase
+    .from('invoices')
+    .select('*, contracts(*, clients(legal_name,ice,if,rc,head_address,city))')
+    .eq('id', invoiceId)
+    .single();
+
+  const { data: s, error: sErr } = await supabase
+    .from('settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle();
+
+  if (error || sErr || !invoice || !s) {
+    alert("Facture introuvable.");
+    return;
+  }
+
+  const items = await loadInvoiceItems(invoiceId);
+
+  const html = buildInvoiceHTML(invoice, invoice.contracts, s, {
+    duplicate: !!opts.duplicate,
+    items
+  });
+
+  invoicePreview.innerHTML = html;
+  document.getElementById('invoiceModal').style.display = 'flex';
+  currentInvoice = invoice;
+}
+
+
 function buildInvoiceHTML(inv, contract, settings, opts={}){
   const amount_ttc = +inv.amount_ttc || +contract.annual_fee || 0;
   const amount_ht = amount_ttc / 1.2;
@@ -2436,7 +2517,9 @@ async function printInvoice(invoiceId) {
       return;
     }
     
-    const html = buildInvoiceHTML(invoice, invoice.contracts, settings);
+    const items = await loadInvoiceItems(invoiceId);
+    const html = buildInvoiceHTML(invoice, invoice.contracts, settings, { items });
+
     
     const printWindow = window.open('', '_blank');
 
@@ -2467,6 +2550,20 @@ if (!printWindow) {
     console.error("Erreur impression:", error);
     alert("Erreur lors de l'impression");
   }
+}
+// fonction pour recuperer les dilgnes de designation de factures
+async function loadInvoiceItems(invoiceId){
+  const { data, error } = await supabase
+    .from('invoice_items')
+    .select('id, invoice_id, label, qty, unit_price_ttc, tva_rate, amount_ht, amount_ttc, service_id')
+    .eq('invoice_id', invoiceId)
+    .order('id', { ascending: true });
+
+  if(error){
+    console.error("Erreur loadInvoiceItems:", error);
+    return [];
+  }
+  return data || [];
 }
 
 // Fonction pour marquer comme payée
@@ -2892,6 +2989,7 @@ setupInvoicePageActions();
 let consultClientId = null;
 
 /* --- Helper écran --- */
+
 function showConsultScreen(show){
   document.getElementById('clientListScreen')?.classList.toggle('hidden', show);
   document.getElementById('clientConsultScreen')?.classList.toggle('hidden', !show);
@@ -3510,6 +3608,9 @@ async function loadServicesForInvoicePicker(contractId){
     opt.dataset.name = s.name || s.code || '';
     opt.dataset.price = s.unit_price_ttc ?? '';
     opt.dataset.tva = s.tva_rate ?? '0.20';
+    opt.dataset.periodicity = s.periodicity || '';
+    opt.dataset.start = s.start_date || '';
+    opt.dataset.end = s.end_date || '';
 
     sel.appendChild(opt);
   });
@@ -3551,6 +3652,49 @@ async function createServiceInvoice(){
   const period_start = document.getElementById('sinv_period_start').value;
   const period_end = document.getElementById('sinv_period_end').value;
 
+  // ✅ 0) Vérifier si une facture existe déjà pour ce service + période + contrat
+const { data: invSamePeriod, error: invErr0 } = await supabase
+  .from('invoices')
+  .select('id, number')
+  .eq('contract_id', selectedContractId)
+  .eq('client_id', consultClientId)
+  .eq('period_start', period_start)
+  .eq('period_end', period_end)
+  .order('created_at', { ascending: true });
+
+if (invErr0) {
+  console.error(invErr0);
+  if (msg) msg.textContent = "Erreur vérification facture: " + invErr0.message;
+  return;
+}
+
+if (invSamePeriod && invSamePeriod.length) {
+  const ids = invSamePeriod.map(x => x.id);
+
+  const { data: itemExist, error: itemErr0 } = await supabase
+    .from('invoice_items')
+    .select('id, invoice_id')
+    .eq('service_id', serviceId)
+    .in('invoice_id', ids)
+    .limit(1)
+    .maybeSingle();
+
+  if (itemErr0) {
+    console.error(itemErr0);
+    if (msg) msg.textContent = "Erreur vérification ligne facture: " + itemErr0.message;
+    return;
+  }
+
+  // ✅ Facture trouvée -> ouvrir duplicata (ne rien créer)
+  if (itemExist?.invoice_id) {
+    if (msg) msg.textContent = "ℹ️ Facture déjà existante : ouverture duplicata...";
+
+    await openInvoiceById(itemExist.invoice_id, { duplicate: true });
+    closeServiceInvoiceModal();
+    return;
+  }
+}
+
   const amount_ttc = parseFloat(document.getElementById('sinv_amount_ttc').value || '0') || 0;
   const tva_rate = parseFloat(document.getElementById('sinv_tva_rate').value || '0.20');
 
@@ -3564,9 +3708,10 @@ async function createServiceInvoice(){
 
   if(msg) msg.textContent = "Génération..." ;
 
+
   // calcul HT depuis TTC (comme tu fais déjà)
   const amount_ht = amount_ttc / (1 + (tva_rate || 0));
-  const today = new Date().toISOString().slice(0,10);
+  const issue_date = period_start;
 
   // numéro de facture (tu as déjà nextNumber())
   const number = await nextNumber('invoices', 'F', period_start);
@@ -3576,7 +3721,7 @@ async function createServiceInvoice(){
     number,
     contract_id: selectedContractId,
     client_id: consultClientId,
-    issue_date: today,
+    issue_date: period_start,
     period_start,
     period_end,
     amount_ht: +amount_ht.toFixed(2),
@@ -3625,14 +3770,26 @@ async function createServiceInvoice(){
   if(typeof loadInvoices === 'function') await loadInvoices();
   if(typeof refreshKPIs === 'function') await refreshKPIs();
 }
+
 (function initServiceInvoicePicker(){
   const sel = document.getElementById('sinv_service_select');
   if(!sel) return;
+
+  // helpers période (mensuel/hebdo/etc.)
+  function endOfMonth(dateStr){
+    const d = new Date(dateStr);
+    const last = new Date(d.getFullYear(), d.getMonth()+1, 0);
+    return yyyymmdd(last);
+  }
+  function addDays(dateStr, n){
+    return addDaysStr(dateStr, n); // tu l'as déjà
+  }
 
   sel.addEventListener('change', (e) => {
     const opt = e.target.selectedOptions?.[0];
     if(!opt || !opt.value) return;
 
+    // ✅ prix/TVA/label (comme tu fais déjà)
     document.getElementById('sinv_amount_ttc').value = opt.dataset.price || '';
     document.getElementById('sinv_tva_rate').value = String(opt.dataset.tva || '0.20');
 
@@ -3640,5 +3797,37 @@ async function createServiceInvoice(){
     if(labelEl && !labelEl.value){
       labelEl.value = opt.dataset.name || 'Service';
     }
+
+    // ✅ auto dates depuis le service
+    const svcStart = opt.dataset.start || '';
+    const svcEnd   = opt.dataset.end || '';      // peut être vide
+    const per      = opt.dataset.periodicity || '';
+
+    if(!svcStart) return; // rien à remplir
+
+    let pStart = svcStart;
+    let pEnd   = svcEnd || ''; // si end existe, on peut l'utiliser directement
+
+    // Si pas de end_date sur le service, calculer selon périodicité
+    if(!pEnd){
+      if(per === 'one_time' || per === 'daily'){
+        pEnd = pStart;
+      } else if(per === 'weekly'){
+        pEnd = addDays(pStart, 6);
+      } else if(per === 'monthly'){
+        pEnd = endOfMonth(pStart);
+      } else if(per === 'yearly'){
+        pEnd = endDatePlus1YearMinus1Day(pStart);
+      } else {
+        // fallback : même jour
+        pEnd = pStart;
+      }
+    }
+
+    // ✅ remplir inputs
+    const inStart = document.getElementById('sinv_period_start');
+    const inEnd   = document.getElementById('sinv_period_end');
+    if(inStart) inStart.value = pStart;
+    if(inEnd)   inEnd.value   = pEnd;
   });
 })();
